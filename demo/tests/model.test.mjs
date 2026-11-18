@@ -1,0 +1,217 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DemoStore, SIZE, emptyBoard, hasWon, replayBoard } from '../model.mjs';
+
+function playing() {
+  const store = new DemoStore({ random: () => 0 });
+  const code = store.createRoom();
+  store.ready(code);
+  store.switchPlayer('chen'); store.joinRoom(code); store.ready(code);
+  return { store, code, room: store.room(code) };
+}
+
+test('a room keeps two distinct seats and remains usable after a rejected join', () => {
+  const store = new DemoStore();
+  const code = store.createRoom();
+  assert.deepEqual(store.room(code).members, ['lin']);
+  store.joinRoom(code);
+  assert.equal(store.room(code).members.length, 1);
+  store.switchPlayer('chen'); store.joinRoom(code);
+  assert.equal(store.joinRoom(code), code);
+  store.switchPlayer('lin');
+  assert.equal(store.joinRoom(code), code);
+  assert.deepEqual(store.room(code).members, ['lin', 'chen']);
+  store.switchPlayer('qiao');
+  const fullRoomSnapshot = structuredClone(store.room(code));
+  assert.throws(() => store.joinRoom(code), /房间已满/);
+  assert.deepEqual(store.room(code), fullRoomSnapshot);
+  store.switchPlayer('lin'); store.ready(code);
+  store.switchPlayer('chen'); store.ready(code);
+  assert.equal(store.room(code).status, 'playing');
+  assert.deepEqual(store.room(code).members, ['lin', 'chen']);
+});
+
+test('existing players can re-enter a full ongoing game without changing its state', () => {
+  const { store, code, room } = playing();
+  store.switchPlayer('lin'); store.play(code, 7, 7);
+  const snapshot = structuredClone(room);
+  for (const identifier of ['lin', 'chen']) {
+    store.switchPlayer(identifier);
+    assert.equal(store.joinRoom(code), code);
+    assert.deepEqual(room, snapshot);
+  }
+});
+
+test('unknown room, full room and normalized room codes behave differently', () => {
+  const store = new DemoStore();
+  assert.throws(() => store.joinRoom('NOPE'), /不存在/);
+  assert.throws(() => store.joinRoom('FULL15'), /已满/);
+  assert.equal(store.joinRoom(' pr2026 '), 'PR2026');
+});
+
+test('both distinct players must prepare before the game starts', () => {
+  const store = new DemoStore({ random: () => 0 });
+  const code = store.createRoom();
+  store.ready(code); store.ready(code);
+  assert.equal(store.room(code).status, 'waiting');
+  store.switchPlayer('chen');
+  assert.throws(() => store.ready(code), /先加入/);
+  store.joinRoom(code); store.ready(code);
+  assert.equal(store.room(code).status, 'playing');
+  assert.equal(store.room(code).turn, 'lin');
+});
+
+test('first-game color assignment uses both random branches', () => {
+  const store = new DemoStore({ random: () => 0.9 });
+  const code = store.createRoom(); store.ready(code);
+  store.switchPlayer('chen'); store.joinRoom(code); store.ready(code);
+  assert.equal(store.room(code).black, 'chen');
+  assert.equal(store.room(code).turn, 'chen');
+});
+
+test('invalid turns and duplicate positions do not change the game', () => {
+  const { store, code, room } = playing();
+  assert.throws(() => store.play(code, 7, 7), /还没轮到/);
+  store.switchPlayer('lin'); store.play(code, 7, 7);
+  assert.throws(() => store.play(code, 7, 8), /还没轮到/);
+  store.switchPlayer('chen');
+  assert.throws(() => store.play(code, 7, 7), /已经有棋子/);
+  assert.equal(room.moves.length, 1);
+  assert.equal(room.turn, 'chen');
+});
+
+test('out-of-bounds, fractional and invalid coordinates are rejected', () => {
+  const { store, code, room } = playing(); store.switchPlayer('lin');
+  for (const [row, col] of [[-1, 0], [15, 0], [0, 15], [1.5, 0], [NaN, 0]]) {
+    assert.throws(() => store.play(code, row, col), /超出了/);
+  }
+  assert.equal(room.moves.length, 0);
+});
+
+for (const [name, dr, dc, r, c] of [
+  ['horizontal edge', 0, 1, 0, 0], ['vertical edge', 1, 0, 0, 14],
+  ['descending diagonal', 1, 1, 0, 0], ['ascending diagonal', 1, -1, 0, 14],
+]) {
+  test(`five stones win along ${name}, four stones do not`, () => {
+    const board = emptyBoard();
+    for (let i = 0; i < 4; i++) board[r + dr * i][c + dc * i] = 1;
+    assert.equal(hasWon(board, r, c), false);
+    board[r + dr * 4][c + dc * 4] = 1;
+    assert.equal(hasWon(board, r + dr * 2, c + dc * 2), true);
+  });
+}
+
+test('freestyle overlines win, disconnected stones and empty cells do not', () => {
+  const board = emptyBoard();
+  for (let col = 2; col < 8; col++) board[7][col] = 2;
+  assert.equal(hasWon(board, 7, 4), true);
+  board[7][4] = 0;
+  assert.equal(hasWon(board, 7, 4), false);
+  assert.equal(hasWon(board, 7, 2), false);
+});
+
+test('a final move in the middle joins both halves of an ascending diagonal and wins', () => {
+  const { store, code, room } = playing();
+  const blackMoves = [[5, 9], [6, 8], [8, 6], [9, 5]];
+  for (let index = 0; index < blackMoves.length; index++) {
+    store.switchPlayer('lin'); store.play(code, ...blackMoves[index]);
+    store.switchPlayer('chen'); store.play(code, 0, 2 * index);
+  }
+  assert.equal(room.status, 'playing');
+  assert.equal(room.board[7][7], 0);
+  store.switchPlayer('lin'); store.play(code, 7, 7);
+  assert.equal(room.status, 'finished');
+  assert.equal(room.winner, 'lin');
+  assert.equal(room.reason, 'five');
+  assert.equal(store.history[0].moves.at(-1).row, 7);
+  assert.equal(store.history[0].moves.at(-1).col, 7);
+});
+
+test('empty or opponent cells interrupt same-color totals in every line', () => {
+  for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+    for (const stone of [1, 2]) {
+      for (const blocker of [0, 3 - stone]) {
+        const board = emptyBoard();
+        for (const offset of [-2, -1, 0, 2, 3]) {
+          board[7 + dr * offset][7 + dc * offset] = stone;
+        }
+        board[7 + dr][7 + dc] = blocker;
+        assert.equal(hasWon(board, 7, 7), false);
+      }
+    }
+  }
+});
+
+test('a completed game produces one immutable replay and cannot receive more moves', () => {
+  const { store, code, room } = playing();
+  for (let index = 0; index < 9; index++) {
+    store.switchPlayer(room.turn);
+    store.play(code, index % 2 ? 8 : 7, 3 + Math.floor(index / 2));
+  }
+  assert.equal(room.status, 'finished'); assert.equal(room.winner, 'lin');
+  assert.equal(store.history.length, 2);
+  assert.throws(() => store.play(code, 0, 0), /已经结束/);
+  store.finish(room, 'chen', 'five');
+  assert.equal(store.history.length, 2);
+  assert.equal(store.history[0].winner, 'lin');
+  assert.deepEqual(replayBoard(store.history[0].moves, 9), room.board);
+});
+
+test('a valid full board without five in a row is a draw', () => {
+  const { store, code, room } = playing();
+  const black = [], white = [];
+  for (let row = 0; row < SIZE; row++) for (let col = 0; col < SIZE; col++) {
+    ((row + 2 * col) % 4 < 2 ? black : white).push([row, col]);
+  }
+  assert.equal(black.length, white.length + 1);
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    store.switchPlayer(room.turn);
+    const [row, col] = (i % 2 ? white : black)[Math.floor(i / 2)];
+    store.play(code, row, col);
+  }
+  assert.equal(room.status, 'finished'); assert.equal(room.reason, 'draw');
+  assert.equal(room.winner, null);
+});
+
+test('simulated disconnection freezes the view and reconnect restores the latest board', () => {
+  const { store, code, room } = playing();
+  store.switchPlayer('lin'); store.play(code, 7, 7); store.toggleConnection();
+  assert.throws(() => store.play(code, 7, 8), /模拟断线/);
+  store.switchPlayer('chen'); store.play(code, 8, 7);
+  store.switchPlayer('lin');
+  assert.equal(store.viewRoom(code).moves.length, 1);
+  assert.equal(room.moves.length, 2);
+  store.toggleConnection();
+  assert.equal(store.viewRoom(code).moves.length, 2);
+  assert.equal(store.viewRoom(code).board[8][7], 2);
+});
+
+test('spectators cannot resign, and resignation only settles once', () => {
+  const { store, code, room } = playing();
+  store.switchPlayer('qiao'); assert.throws(() => store.resign(code), /不是这局/);
+  store.switchPlayer('lin'); store.resign(code);
+  assert.equal(room.winner, 'chen'); assert.equal(room.reason, 'resign');
+  assert.throws(() => store.resign(code), /没有进行中/);
+  assert.equal(store.history.length, 2);
+});
+
+test('rematches exchange colors, clear readiness and preserve the previous replay', () => {
+  const { store, code, room } = playing();
+  store.switchPlayer('lin'); store.play(code, 7, 7); store.resign(code);
+  const history = structuredClone(store.history[0]);
+  store.rematch(code);
+  assert.equal(room.status, 'waiting'); assert.equal(room.black, 'chen');
+  assert.deepEqual(room.ready, []); assert.equal(room.moves.length, 0);
+  store.ready(code); store.switchPlayer('chen'); store.ready(code);
+  assert.equal(room.turn, 'chen'); assert.equal(room.round, 2);
+  assert.deepEqual(store.history[0], history);
+});
+
+test('replay detects duplicate, out-of-bounds and wrong-color records', () => {
+  const a = { row: 7, col: 7, stone: 1 }, b = { row: 8, col: 7, stone: 2 };
+  assert.equal(replayBoard([a, b], 1)[8][7], 0);
+  for (const moves of [[a, { ...a, stone: 2 }], [{ ...a, row: 15 }], [{ ...a, stone: 2 }]]) {
+    assert.throws(() => replayBoard(moves, moves.length), /非法落子/);
+  }
+  assert.throws(() => replayBoard([a], 2), /步数/);
+});
