@@ -1,4 +1,5 @@
 import { DemoStore, PLAYERS, SIZE, player, replayBoard } from './model.mjs';
+import { notation, replayCsv } from './replay-export.mjs';
 
 const store = new DemoStore();
 const ui = { page: 'welcome', roomCode: null, replayId: null, step: 0, modal: false };
@@ -100,7 +101,7 @@ function historyPage() {
 function replayPage() {
   const record = store.history.find(item => item.id === ui.replayId);
   const moves = record.moves.slice(0, ui.step), board = replayBoard(record.moves, ui.step);
-  return `${intro('LOOK BACK, PLAY BETTER', '重新走过，这一盘棋。', `${player(record.black).name} vs ${player(record.white).name} · ${record.sample ? '示例棋谱' : '本次演示棋谱'}`)}<div class="room-layout"><section class="card board-card"><header class="board-header"><h2>棋谱复盘</h2><span data-replay-step>第 ${ui.step} / ${record.moves.length} 手</span></header><div class="board-wrap">${boardMarkup(board, moves, true)}</div><footer class="board-footer"><span>复盘仅查看，不会改变原对局</span><span>黑棋：${player(record.black).name}</span></footer></section><aside class="room-side"><section class="card players-card"><h3>慢一点，再看一次</h3><div class="replay-controls"><button class="secondary" data-action="step" data-step="0" aria-label="回到开局">｜‹</button><button class="secondary" data-action="step" data-step="${Math.max(0, ui.step - 1)}" aria-label="上一手" ${ui.step === 0 ? 'disabled' : ''}>‹</button><button class="secondary" data-action="step" data-step="${Math.min(record.moves.length, ui.step + 1)}" aria-label="下一手" ${ui.step === record.moves.length ? 'disabled' : ''}>›</button><button class="secondary" data-action="step" data-step="${record.moves.length}" aria-label="跳到终局">›｜</button></div><label for="replay-slider" class="hint">跳到第 ${ui.step} 手</label><input id="replay-slider" class="replay-slider" type="range" min="0" max="${record.moves.length}" value="${ui.step}" aria-label="复盘步数"><div class="move-list">${record.moves.map((move, index) => `<div class="move-line ${index + 1 === ui.step ? 'selected' : ''}"><span>${String(index + 1).padStart(2, '0')} · ${move.stone === 1 ? '黑' : '白'}</span><span>${String.fromCharCode(65 + move.col)}${move.row + 1}</span></div>`).join('') || '<p class="hint">这局在落子前认输，没有棋谱。</p>'}</div></section><div class="room-note"><strong>${record.winner ? player(record.winner).name + '获胜' : '平局'}</strong>${record.moves.length} 手 · ${record.reason === 'resign' ? '认输结算' : '自由五子棋'}</div></aside></div><button class="quiet" style="margin-top:20px" data-action="navigate" data-page="history">${icon('back')} 返回我的棋谱</button>`;
+  return `${intro('LOOK BACK, PLAY BETTER', '重新走过，这一盘棋。', `${player(record.black).name} vs ${player(record.white).name} · ${record.sample ? '示例棋谱' : '本次演示棋谱'}`)}<div class="room-layout"><section class="card board-card"><header class="board-header"><h2>棋谱复盘</h2><span data-replay-step>第 ${ui.step} / ${record.moves.length} 手</span></header><div class="board-wrap">${boardMarkup(board, moves, true)}</div><footer class="board-footer"><span>复盘仅查看，不会改变原对局</span><span>黑棋：${player(record.black).name}</span></footer></section><aside class="room-side"><section class="card players-card"><h3>慢一点，再看一次</h3><div class="replay-controls"><button class="secondary" data-action="step" data-step="0" aria-label="回到开局">｜‹</button><button class="secondary" data-action="step" data-step="${Math.max(0, ui.step - 1)}" aria-label="上一手" ${ui.step === 0 ? 'disabled' : ''}>‹</button><button class="secondary" data-action="step" data-step="${Math.min(record.moves.length, ui.step + 1)}" aria-label="下一手" ${ui.step === record.moves.length ? 'disabled' : ''}>›</button><button class="secondary" data-action="step" data-step="${record.moves.length}" aria-label="跳到终局">›｜</button></div><label for="replay-slider" class="hint">跳到第 ${ui.step} 手</label><input id="replay-slider" class="replay-slider" type="range" min="0" max="${record.moves.length}" value="${ui.step}" aria-label="复盘步数"><div class="move-list">${record.moves.map((move, index) => `<div class="move-line ${index + 1 === ui.step ? 'selected' : ''}"><span>${String(index + 1).padStart(2, '0')} · ${move.stone === 1 ? '黑' : '白'}</span><span>${notation(move)}</span></div>`).join('') || '<p class="hint">这局在落子前认输，没有棋谱。</p>'}</div><div class="replay-export"><button class="secondary" data-action="export-replay">导出 CSV</button></div></section><div class="room-note"><strong>${record.winner ? player(record.winner).name + '获胜' : '平局'}</strong>${record.moves.length} 手 · ${record.reason === 'resign' ? '认输结算' : '自由五子棋'}</div></aside></div><button class="quiet" style="margin-top:20px" data-action="navigate" data-page="history">${icon('back')} 返回我的棋谱</button>`;
 }
 
 function rulesPage() {
@@ -150,6 +151,19 @@ app.addEventListener('click', async event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, code, page, id, step, row, col } = button.dataset;
+  if (action === 'export-replay') {
+    const record = store.history.find(item => item.id === ui.replayId && item.members.includes(store.activePlayer));
+    if (!record) return;
+    try {
+      const url = URL.createObjectURL(new Blob([replayCsv(record.moves)], { type: 'text/csv;charset=utf-8' }));
+      const download = document.createElement('a');
+      download.href = url;
+      download.download = 'playroom-replay.csv';
+      download.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { toast(error.message); }
+    return;
+  }
   if (action === 'copy') {
     try { await navigator.clipboard.writeText(ui.roomCode); toast('房间码已复制；在 Demo 中请切换角色模拟加入'); }
     catch { toast(`房间码：${ui.roomCode}，可以手动复制`); }

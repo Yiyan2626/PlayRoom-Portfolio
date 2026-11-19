@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DemoStore, SIZE, emptyBoard, hasWon, replayBoard } from '../model.mjs';
+import { replayCsv } from '../replay-export.mjs';
 
 function playing() {
   const store = new DemoStore({ random: () => 0 });
@@ -9,6 +10,16 @@ function playing() {
   store.switchPlayer('chen'); store.joinRoom(code); store.ready(code);
   return { store, code, room: store.room(code) };
 }
+
+test('CSV preserves both colors, edge positions and move order without player fields', () => {
+  const moves = [
+    { row: 14, col: 14, stone: 1, playerId: 'black-id' },
+    { row: 0, col: 0, stone: 2, playerId: 'white-id' },
+  ];
+  assert.equal(replayCsv(moves), 'move,stone,position\r\n1,black,O15\r\n2,white,A1\r\n');
+  assert.equal(replayCsv([]), 'move,stone,position\r\n');
+  assert.throws(() => replayCsv([moves[0], { ...moves[0], stone: 2 }]), /非法落子/);
+});
 
 test('a room keeps two distinct seats and remains usable after a rejected join', () => {
   const store = new DemoStore();

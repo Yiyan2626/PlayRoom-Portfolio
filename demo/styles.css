@@ -148,6 +148,7 @@ select { border: 1px solid #d9e1d1; background: #fffefa; color: #4a6551; padding
 .replay-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 17px 0; }
 .replay-slider { display: block; padding: 0; border: 0; margin: 15px 0 22px; accent-color: var(--green); }
 .move-list { max-height: 225px; overflow: auto; font-size: 11px; color: #7e8c73; }
+.replay-export { margin-top: 12px; }
 .move-line { padding: 7px 9px; display: flex; justify-content: space-between; border-radius: 5px; }
 .move-line.selected { background: #e7efdb; color: #4d7245; }
 .rules { padding: 30px; }
