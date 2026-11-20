@@ -101,7 +101,55 @@ function historyPage() {
 function replayPage() {
   const record = store.history.find(item => item.id === ui.replayId);
   const moves = record.moves.slice(0, ui.step), board = replayBoard(record.moves, ui.step);
-  return `${intro('LOOK BACK, PLAY BETTER', '重新走过，这一盘棋。', `${player(record.black).name} vs ${player(record.white).name} · ${record.sample ? '示例棋谱' : '本次演示棋谱'}`)}<div class="room-layout"><section class="card board-card"><header class="board-header"><h2>棋谱复盘</h2><span data-replay-step>第 ${ui.step} / ${record.moves.length} 手</span></header><div class="board-wrap">${boardMarkup(board, moves, true)}</div><footer class="board-footer"><span>复盘仅查看，不会改变原对局</span><span>黑棋：${player(record.black).name}</span></footer></section><aside class="room-side"><section class="card players-card"><h3>慢一点，再看一次</h3><div class="replay-controls"><button class="secondary" data-action="step" data-step="0" aria-label="回到开局">｜‹</button><button class="secondary" data-action="step" data-step="${Math.max(0, ui.step - 1)}" aria-label="上一手" ${ui.step === 0 ? 'disabled' : ''}>‹</button><button class="secondary" data-action="step" data-step="${Math.min(record.moves.length, ui.step + 1)}" aria-label="下一手" ${ui.step === record.moves.length ? 'disabled' : ''}>›</button><button class="secondary" data-action="step" data-step="${record.moves.length}" aria-label="跳到终局">›｜</button></div><label for="replay-slider" class="hint">跳到第 ${ui.step} 手</label><input id="replay-slider" class="replay-slider" type="range" min="0" max="${record.moves.length}" value="${ui.step}" aria-label="复盘步数"><div class="move-list">${record.moves.map((move, index) => `<div class="move-line ${index + 1 === ui.step ? 'selected' : ''}"><span>${String(index + 1).padStart(2, '0')} · ${move.stone === 1 ? '黑' : '白'}</span><span>${notation(move)}</span></div>`).join('') || '<p class="hint">这局在落子前认输，没有棋谱。</p>'}</div><div class="replay-export"><button class="secondary" data-action="export-replay">导出 CSV</button></div></section><div class="room-note"><strong>${record.winner ? player(record.winner).name + '获胜' : '平局'}</strong>${record.moves.length} 手 · ${record.reason === 'resign' ? '认输结算' : '自由五子棋'}</div></aside></div><button class="quiet" style="margin-top:20px" data-action="navigate" data-page="history">${icon('back')} 返回我的棋谱</button>`;
+  return `${intro('LOOK BACK, PLAY BETTER', '重新走过，这一盘棋。', `${player(record.black).name} vs ${player(record.white).name} · ${record.sample ? '示例棋谱' : '本次演示棋谱'}`)}
+    <div class="room-layout">
+      <section class="card board-card"><header class="board-header"><h2>棋谱复盘</h2><span data-replay-step>第 ${ui.step} / ${record.moves.length} 手</span></header>
+        <div class="board-wrap" data-replay-board>${boardMarkup(board, moves, true)}</div>
+        <footer class="board-footer"><span>复盘仅查看，不会改变原对局</span><span>黑棋：${player(record.black).name}</span></footer>
+      </section>
+      <aside class="room-side"><section class="card players-card"><h3>慢一点，再看一次</h3>
+        <div class="replay-controls">
+          <button class="secondary" data-action="step" data-step="0" aria-label="回到开局">｜‹</button>
+          <button class="secondary" data-action="step" data-replay-previous data-step="${Math.max(0, ui.step - 1)}" aria-label="上一手" ${ui.step === 0 ? 'disabled' : ''}>‹</button>
+          <button class="secondary" data-action="step" data-replay-next data-step="${Math.min(record.moves.length, ui.step + 1)}" aria-label="下一手" ${ui.step === record.moves.length ? 'disabled' : ''}>›</button>
+          <button class="secondary" data-action="step" data-step="${record.moves.length}" aria-label="跳到终局">›｜</button>
+        </div>
+        <label for="replay-slider" class="hint">跳到第 ${ui.step} 手</label>
+        <input id="replay-slider" class="replay-slider" type="range" min="0" max="${record.moves.length}" value="${ui.step}" aria-label="复盘步数" aria-valuetext="第 ${ui.step} 手，共 ${record.moves.length} 手" ${record.moves.length ? '' : 'disabled'}>
+        <div class="move-list">${record.moves.map((move, index) => `<div class="move-line ${index + 1 === ui.step ? 'selected' : ''}" ${index + 1 === ui.step ? 'aria-current="step"' : ''}><span>${String(index + 1).padStart(2, '0')} · ${move.stone === 1 ? '黑' : '白'}</span><span>${notation(move)}</span></div>`).join('') || '<p class="hint">这局在落子前认输，没有棋谱。</p>'}</div>
+        <div class="replay-export"><button class="secondary" data-action="export-replay">导出 CSV</button></div>
+      </section><div class="room-note"><strong>${record.winner ? player(record.winner).name + '获胜' : '平局'}</strong>${record.moves.length} 手 · ${record.reason === 'resign' ? '认输结算' : '自由五子棋'}</div></aside>
+    </div><button class="quiet" style="margin-top:20px" data-action="navigate" data-page="history">${icon('back')} 返回我的棋谱</button>`;
+}
+
+function seekReplay(step) {
+  const { moves } = store.history.find(item => item.id === ui.replayId);
+  if (step === ui.step) return;
+  const board = replayBoard(moves, step);
+  ui.step = step;
+  // 只更新棋盘和步数，保留滑块的拖动状态及步进按钮的键盘焦点。
+  app.querySelector('[data-replay-board]').innerHTML = boardMarkup(board, moves.slice(0, step), true);
+  app.querySelector('[data-replay-step]').textContent = `第 ${step} / ${moves.length} 手`;
+  app.querySelector('label[for="replay-slider"]').textContent = `跳到第 ${step} 手`;
+  const slider = app.querySelector('#replay-slider');
+  slider.value = step;
+  slider.setAttribute('aria-valuetext', `第 ${step} 手，共 ${moves.length} 手`);
+  const previous = app.querySelector('[data-replay-previous]');
+  const next = app.querySelector('[data-replay-next]');
+  if ((step === 0 && document.activeElement === previous) || (step === moves.length && document.activeElement === next)) {
+    slider.focus({ preventScroll: true });
+  }
+  previous.dataset.step = Math.max(0, step - 1);
+  next.dataset.step = Math.min(moves.length, step + 1);
+  previous.disabled = step === 0;
+  next.disabled = step === moves.length;
+  const list = app.querySelector('.move-list');
+  const before = list.querySelector('[aria-current="step"]');
+  before?.classList.remove('selected');
+  before?.removeAttribute('aria-current');
+  const current = list.children[step - 1];
+  current?.classList.add('selected');
+  current?.setAttribute('aria-current', 'step');
 }
 
 function rulesPage() {
@@ -145,12 +193,15 @@ app.addEventListener('submit', event => {
 });
 app.addEventListener('change', event => {
   if (event.target.id === 'role-select') perform(() => store.switchPlayer(event.target.value));
-  if (event.target.id === 'replay-slider') perform(() => { ui.step = Number(event.target.value); });
+});
+app.addEventListener('input', event => {
+  if (event.target.id === 'replay-slider') seekReplay(event.target.valueAsNumber);
 });
 app.addEventListener('click', async event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, code, page, id, step, row, col } = button.dataset;
+  if (action === 'step') { seekReplay(Number(step)); return; }
   if (action === 'export-replay') {
     const record = store.history.find(item => item.id === ui.replayId && item.members.includes(store.activePlayer));
     if (!record) return;
@@ -187,7 +238,6 @@ app.addEventListener('click', async event => {
     if (action === 'resign') { store.resign(ui.roomCode); ui.modal = false; }
     if (action === 'rematch') store.rematch(ui.roomCode);
     if (action === 'replay') { ui.replayId = id; ui.step = store.history.find(record => record.id === id).moves.length; ui.page = 'replay'; }
-    if (action === 'step') ui.step = Number(step);
   });
 });
 document.addEventListener('keydown', event => {
