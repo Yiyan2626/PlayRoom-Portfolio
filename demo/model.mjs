@@ -31,6 +31,7 @@ export function replayBoard(moves, step) {
     if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row >= SIZE || col < 0 || col >= SIZE ||
         stone !== (index % 2 === 0 ? 1 : 2) || board[row][col]) throw new Error('棋谱包含非法落子');
     board[row][col] = stone;
+    if (index + 1 < step && hasWon(board, row, col)) throw new Error('棋谱在五子连线后仍有落子');
   }
   return board;
 }

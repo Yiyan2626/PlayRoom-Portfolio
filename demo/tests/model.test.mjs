@@ -21,6 +21,20 @@ test('CSV preserves both colors, edge positions and move order without player fi
   assert.throws(() => replayCsv([moves[0], { ...moves[0], stone: 2 }]), /非法落子/);
 });
 
+test('both colors can finish a replay, but a move after five cannot be replayed or exported', () => {
+  for (const winner of [1, 2]) {
+    const moves = Array.from({ length: winner === 1 ? 9 : 10 }, (_, i) => {
+      const stone = i % 2 + 1, n = Math.floor(i / 2);
+      return { stone, row: stone === winner ? 0 : 2, col: stone === winner ? n : n * 2 };
+    });
+    const continued = [...moves, { row: 14, col: 14, stone: 3 - winner }];
+    assert.equal(replayBoard(continued, moves.length)[0][4], winner);
+    assert.doesNotThrow(() => replayCsv(moves));
+    assert.throws(() => replayBoard(continued, continued.length), /五子连线后/);
+    assert.throws(() => replayCsv(continued), /五子连线后/);
+  }
+});
+
 test('a room keeps two distinct seats and remains usable after a rejected join', () => {
   const store = new DemoStore();
   const code = store.createRoom();
