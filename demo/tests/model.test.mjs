@@ -2,6 +2,30 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DemoStore, SIZE, emptyBoard, hasWon, replayBoard } from '../model.mjs';
 import { replayCsv } from '../replay-export.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+test('terminal replay displays the selected sample position and rejects invalid steps', () => {
+  const cli = fileURLToPath(new URL('../replay-sample.mjs', import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
+  for (const [args, step, last, blacks] of [[['0'], 0, '-', 0], [['8'], 8, 'G9', 4], [[], 9, 'H8', 5]]) {
+    const { status, stdout } = run(...args);
+    assert.equal(status, 0);
+    const [summary, labels, ...rows] = stdout.trimEnd().split(/\r?\n/);
+    assert.ok(summary.startsWith(`Step ${step}/9 | last: ${last} |`));
+    assert.equal(labels.trim(), 'A B C D E F G H I J K L M N O');
+    assert.equal(rows.length, 15);
+    assert.equal(rows[7].trim().split(/\s+/).slice(4, 4 + blacks).join(''), 'X'.repeat(blacks));
+    assert.equal(rows.join('').match(/X/g)?.length ?? 0, blacks);
+    assert.equal(rows.join('').match(/O/g)?.length ?? 0, Math.floor(step / 2));
+  }
+  for (const args of [['10'], ['2.5'], ['1', '2']]) {
+    const result = run(...args);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /0\.\.9/);
+  }
+});
 
 function playing() {
   const store = new DemoStore({ random: () => 0 });
