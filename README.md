@@ -42,6 +42,8 @@ python demo/serve.py
 
 也可以只用 Node.js 在终端回放同一份示例棋谱，无需启动服务。运行 `node demo/replay-sample.mjs 8`，第 8 行的 D–G 列有四颗黑子，第 9 行的 G 列是刚下的白子。再运行 `node demo/replay-sample.mjs` 查看终局：黑方在 H8 连成五子。传 `0` 可查看空棋盘。
 
+运行 `node demo/replay-sample.mjs --csv` 可在终端取得与网页导出相同的完整示例棋谱：第一手是 `1,black,D8`，最后一手是 `9,black,H8`。输出只包含 CSV，可直接交给下一个工具读取。
+
 检验 Java 21 / Maven 3.9 和 Node.js 20+ 下的公开代码：
 
 ```bash

@@ -19,7 +19,10 @@ test('terminal replay displays the selected sample position and rejects invalid 
     assert.equal(rows.join('').match(/X/g)?.length ?? 0, blacks);
     assert.equal(rows.join('').match(/O/g)?.length ?? 0, Math.floor(step / 2));
   }
-  for (const args of [['10'], ['2.5'], ['1', '2']]) {
+  const csv = run('--csv');
+  assert.equal(csv.status, 0);
+  assert.equal(csv.stdout, replayCsv(new DemoStore().history.find(game => game.sample).moves));
+  for (const args of [['10'], ['2.5'], ['1', '2'], ['--csv', '8']]) {
     const result = run(...args);
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');
