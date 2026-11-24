@@ -30,6 +30,23 @@ test('terminal replay displays the selected sample position and rejects invalid 
   }
 });
 
+test('coordinate lookup distinguishes recorded moves, empty intersections and invalid input', () => {
+  const cli = fileURLToPath(new URL('../replay-sample.mjs', import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, '--at', ...args], { encoding: 'utf8' });
+  for (const [position, expected] of [['h8', 'H8: move 9, black'], ['G9', 'G9: move 8, white'],
+    ['A1', 'A1: empty'], ['O15', 'O15: empty']]) {
+    const result = run(position);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout.trimEnd(), expected);
+  }
+  for (const args of [[], ['H0'], ['A16'], ['P1'], ['H08'], ['A1', 'B2']]) {
+    const result = run(...args);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /--at A1\.\.O15/);
+  }
+});
+
 function playing() {
   const store = new DemoStore({ random: () => 0 });
   const code = store.createRoom();

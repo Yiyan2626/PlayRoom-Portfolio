@@ -6,8 +6,13 @@ const args = process.argv.slice(2);
 const raw = args[0] ?? String(moves.length);
 if (args.length === 1 && raw === '--csv') {
   process.stdout.write(replayCsv(moves));
+} else if (args.length === 2 && raw === '--at' && /^[a-o](?:[1-9]|1[0-5])$/i.test(args[1])) {
+  const position = args[1].toUpperCase();
+  const index = moves.findIndex(move => notation(move) === position);
+  const result = index === -1 ? 'empty' : `move ${index + 1}, ${moves[index].stone === 1 ? 'black' : 'white'}`;
+  console.log(`${position}: ${result}`);
 } else if (args.length > 1 || !/^(0|[1-9]\d*)$/.test(raw) || Number(raw) > moves.length) {
-  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv]`);
+  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv | --at A1..O15]`);
   process.exitCode = 1;
 } else {
   const step = Number(raw);
