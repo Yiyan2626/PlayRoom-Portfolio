@@ -46,6 +46,8 @@ python demo/serve.py
 
 想知道示例棋盘上某颗子是哪一手下的，运行 `node demo/replay-sample.mjs --at H8`，会得到 `H8: move 9, black`。查询空交点 `O15` 会得到 `O15: empty`。列为 A–O，行号为 1–15；列名不区分大小写。
 
+也可以只查询前几手：`node demo/replay-sample.mjs --at H8 8` 输出 `H8: empty`；把最后的 `8` 换成 `9`，输出 `H8: move 9, black`。手数 `0` 表示尚未落子，省略手数则查询终局。
+
 检验 Java 21 / Maven 3.9 和 Node.js 20+ 下的公开代码：
 
 ```bash

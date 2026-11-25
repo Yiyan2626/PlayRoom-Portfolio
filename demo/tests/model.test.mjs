@@ -39,7 +39,13 @@ test('coordinate lookup distinguishes recorded moves, empty intersections and in
     assert.equal(result.status, 0);
     assert.equal(result.stdout.trimEnd(), expected);
   }
-  for (const args of [[], ['H0'], ['A16'], ['P1'], ['H08'], ['A1', 'B2']]) {
+  for (const [pos, step, expected] of [['D8', '0', 'empty'], ['D8', '8', 'move 1, black'],
+    ['G9', '7', 'empty'], ['G9', '8', 'move 8, white'], ['H8', '8', 'empty'], ['H8', '9', 'move 9, black']]) {
+    const result = run(pos, step);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout.trimEnd(), `${pos}: ${expected}`);
+  }
+  for (const args of [[], ['H0'], ['A16'], ['P1'], ['H08'], ['A1', 'B2'], ['H8', '10'], ['H8', '-1'], ['H8', '1.5']]) {
     const result = run(...args);
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');

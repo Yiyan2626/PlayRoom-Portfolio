@@ -4,15 +4,18 @@ import { notation, replayCsv } from './replay-export.mjs';
 const { moves } = new DemoStore().history.find(game => game.sample);
 const args = process.argv.slice(2);
 const raw = args[0] ?? String(moves.length);
+const validStep = value => /^(0|[1-9]\d*)$/.test(value) && Number(value) <= moves.length;
 if (args.length === 1 && raw === '--csv') {
   process.stdout.write(replayCsv(moves));
-} else if (args.length === 2 && raw === '--at' && /^[a-o](?:[1-9]|1[0-5])$/i.test(args[1])) {
+} else if (raw === '--at' && /^[a-o](?:[1-9]|1[0-5])$/i.test(args[1]) &&
+    (args.length === 2 || (args.length === 3 && validStep(args[2])))) {
   const position = args[1].toUpperCase();
-  const index = moves.findIndex(move => notation(move) === position);
+  const step = Number(args[2] ?? moves.length);
+  const index = moves.findIndex((move, i) => i < step && notation(move) === position);
   const result = index === -1 ? 'empty' : `move ${index + 1}, ${moves[index].stone === 1 ? 'black' : 'white'}`;
   console.log(`${position}: ${result}`);
-} else if (args.length > 1 || !/^(0|[1-9]\d*)$/.test(raw) || Number(raw) > moves.length) {
-  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv | --at A1..O15]`);
+} else if (args.length > 1 || !validStep(raw)) {
+  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv | --at A1..O15 [0..${moves.length}]]`);
   process.exitCode = 1;
 } else {
   const step = Number(raw);
