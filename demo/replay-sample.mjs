@@ -7,6 +7,13 @@ const raw = args[0] ?? String(moves.length);
 const validStep = value => /^(0|[1-9]\d*)$/.test(value) && Number(value) <= moves.length;
 if (args.length === 1 && raw === '--csv') {
   process.stdout.write(replayCsv(moves));
+} else if (raw === '--between' && args.length === 3 && args.slice(1).every(validStep) && Number(args[1]) <= Number(args[2])) {
+  const from = Number(args[1]), to = Number(args[2]);
+  if (from === to) console.log('No new moves.');
+  for (let i = from; i < to; i++) {
+    const move = moves[i];
+    console.log(`move ${i + 1}: ${move.stone === 1 ? 'black' : 'white'} ${notation(move)}`);
+  }
 } else if (raw === '--at' && /^[a-o](?:[1-9]|1[0-5])$/i.test(args[1]) &&
     (args.length === 2 || (args.length === 3 && validStep(args[2])))) {
   const position = args[1].toUpperCase();
@@ -15,7 +22,7 @@ if (args.length === 1 && raw === '--csv') {
   const result = index === -1 ? 'empty' : `move ${index + 1}, ${moves[index].stone === 1 ? 'black' : 'white'}`;
   console.log(`${position}: ${result}`);
 } else if (args.length > 1 || !validStep(raw)) {
-  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv | --at A1..O15 [0..${moves.length}]]`);
+  console.error(`Usage: node demo/replay-sample.mjs [0..${moves.length} | --csv | --at A1..O15 [0..${moves.length}] | --between FROM TO (0..${moves.length})]`);
   process.exitCode = 1;
 } else {
   const step = Number(raw);

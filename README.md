@@ -48,6 +48,8 @@ python demo/serve.py
 
 也可以只查询前几手：`node demo/replay-sample.mjs --at H8 8` 输出 `H8: empty`；把最后的 `8` 换成 `9`，输出 `H8: move 9, black`。手数 `0` 表示尚未落子，省略手数则查询终局。
 
+要比较两个回放时刻，运行 `node demo/replay-sample.mjs --between 7 9`。它从第 7 手结束后的棋盘开始，列出新增的第 8 手白棋 G9 和第 9 手黑棋 H8。相同步数表示没有新增落子；起点晚于终点会报错。
+
 检验 Java 21 / Maven 3.9 和 Node.js 20+ 下的公开代码：
 
 ```bash

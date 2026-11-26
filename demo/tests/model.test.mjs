@@ -30,6 +30,23 @@ test('terminal replay displays the selected sample position and rejects invalid 
   }
 });
 
+test('between replay steps lists only new moves with their original numbers', () => {
+  const cli = fileURLToPath(new URL('../replay-sample.mjs', import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, '--between', ...args], { encoding: 'utf8' });
+  for (const [from, to, lines] of [['7', '9', ['move 8: white G9', 'move 9: black H8']],
+    ['0', '1', ['move 1: black D8']], ['9', '9', ['No new moves.']]]) {
+    const result = run(from, to);
+    assert.equal(result.status, 0);
+    assert.deepEqual(result.stdout.trim().split(/\r?\n/), lines);
+  }
+  for (const args of [['9','8'], ['0','10'], ['1.5','4'], ['1'], ['0','1','2']]) {
+    const result = run(...args);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /--between/);
+  }
+});
+
 test('coordinate lookup distinguishes recorded moves, empty intersections and invalid input', () => {
   const cli = fileURLToPath(new URL('../replay-sample.mjs', import.meta.url));
   const run = (...args) => spawnSync(process.execPath, [cli, '--at', ...args], { encoding: 'utf8' });
