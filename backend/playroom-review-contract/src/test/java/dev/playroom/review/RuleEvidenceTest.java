@@ -13,6 +13,13 @@ class RuleEvidenceTest {
         assertEquals(5,line.cells().size());assertEquals(new Review.Cell(7,4),line.cells().getLast());
         assertThrows(UnsupportedOperationException.class,()->line.cells().clear());
     }
+    @Test void seventhMoveKeepsItsOwnCellAndUsesPlayerFacingCoordinates() {
+        var evidence = RuleEvidence.verify(win());
+        var seventh = evidence.stream().filter(item -> item.id().equals("M7")).findFirst().orElseThrow();
+        assertEquals(7, seventh.step());
+        assertEquals(List.of(new Review.Cell(7, 3)), seventh.cells());
+        assertEquals("第7手黑棋落在第8行第4列", seventh.description());
+    }
     @Test void rejectsOutsiderAndForgedColor() {
         var f=win();assertThrows(IllegalArgumentException.class,()->RuleEvidence.verify(new Review.Facts(f.gameId(),9,7,8,9,f.reason(),7L,f.moves())));
         var m=new ArrayList<>(f.moves());m.set(1,new Review.Step(2,8,8,0,"BLACK",2));
