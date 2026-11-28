@@ -307,3 +307,17 @@ test('replay detects duplicate, out-of-bounds and wrong-color records', () => {
   }
   assert.throws(() => replayBoard([a], 2), /步数/);
 });
+
+test('move claims distinguish a matching square, a wrong square and invalid input', () => {
+  const cli = fileURLToPath(new URL('../replay-sample.mjs', import.meta.url));
+  const check = (...args) => spawnSync(process.execPath, [cli, '--check', ...args], { encoding: 'utf8' });
+  const match = check('7', 'g8');
+  assert.equal(match.status, 0);
+  assert.equal(match.stdout.trim(), 'M7: claimed G8, replay G8 (match)');
+  const miss = check('7', 'H8');
+  assert.equal(miss.status, 2);
+  assert.equal(miss.stdout.trim(), 'M7: claimed H8, replay G8 (mismatch)');
+  for (const args of [['0', 'D8'], ['10', 'H8'], ['7', 'P8'], ['7']]) {
+    assert.equal(check(...args).status, 1);
+  }
+});

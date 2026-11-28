@@ -48,6 +48,8 @@ python demo/serve.py
 
 也可以只查询前几手：`node demo/replay-sample.mjs --at H8 8` 输出 `H8: empty`；把最后的 `8` 换成 `9`，输出 `H8: move 9, black`。手数 `0` 表示尚未落子，省略手数则查询终局。
 
+核对一条回答中的手数与坐标，运行 `node demo/replay-sample.mjs --check 7 G8`。把 G8 改成 H8，可看到声称位置和实际落点相差一列。
+
 要比较两个回放时刻，运行 `node demo/replay-sample.mjs --between 7 9`。它从第 7 手结束后的棋盘开始，列出新增的第 8 手白棋 G9 和第 9 手黑棋 H8。相同步数表示没有新增落子；起点晚于终点会报错。
 
 检验 Java 21 / Maven 3.9 和 Node.js 20+ 下的公开代码：
@@ -61,6 +63,6 @@ node --test demo/tests/model.test.mjs
 
 ## 开发记录怎么读
 
-[项目博客](docs/blog/README.md)：每个学习日用一个具体问题记录项目里的技术取舍。最新文章是[《引用 M7，为什么还要看那颗棋子？》](blog/2026-11-27-move-evidence.md)。
+[项目博客](docs/blog/README.md)：每个学习日用一个具体问题记录项目里的技术取舍。最新文章是[《删掉一道错题，通过率涨了多少？》](blog/2026-11-28-fixed-replay-checks.md)。
 
 公开仓库于 2026-11-18 从经筛选的项目代码建立。[开发时间线](docs/development-log.md)记录原工程中已核对的真实日期与成果；早期日期是历史整理，不是补造的公开提交。之后本仓库的真实变化可以直接在 `main` 的提交记录查看。
